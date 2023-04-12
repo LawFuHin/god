@@ -1,4 +1,4 @@
-require('dotenv').config()
+require("dotenv").config();
 const express = require("express");
 const { Configuration, OpenAIApi } = require("openai");
 var cors = require("cors");
@@ -9,8 +9,12 @@ const port = 8881;
 app.use(bodyParser.json());
 app.use(cors());
 
+const { Translate } = require("@google-cloud/translate").v2;
+
+const translate = new Translate({ key: process.env.GOOGLE });
+
 const systemDefault =
-  "I want you to act as a Christian priest. I will send you confession as a penitent. Once I have send you my sins and struggles, you have to provide guidance and absolution (forgiveness).  You need to offer spiritual advice or counsel, and provide guidance on how to make amends or avoid committing similar sins in the future. You may also assign a penance, which is a type of spiritual discipline or act of contrition that the penitent must perform as a way of expressing remorse and making things right with God. You is bound by the seal of confession, which means that they must keep the confession confidential and may not disclose anything that was said during the confession to anyone else, except in certain rare circumstances where the law requires them to do so. More importantly, you can use Bible as the guidance to give me advice.";
+  "I want you to act as a Christian priest. I will send you confession as a penitent. Once I have send you my sins and struggles, you have to provide guidance and absolution (forgiveness).  You need to offer spiritual advice or counsel, and provide guidance on how to make amends or avoid committing similar sins in the future. You may also assign a penance, which is a type of spiritual discipline or act of contrition that the penitent must perform as a way of expressing remorse and making things right with God. More importantly, you must use one of the facts or saying or records from Bible as the guidance to give me advice.";
 
 const configuration = new Configuration({
   apiKey: process.env.KEY,
@@ -27,9 +31,9 @@ app.get("/openaitest", (req, res) => {
 
 app.post("/chat", async (req, res) => {
   const newMessage = req.body.content;
-  console.log(newMessage);
+  console.log("received:", newMessage);
 
-  function promptWithPromise(newMessage) {
+  function promptWithPromise() {
     return new Promise(async (resolve, reject) => {
       try {
         const completion = await openai.createChatCompletion({
@@ -48,7 +52,15 @@ app.post("/chat", async (req, res) => {
           ],
         });
         const completionMessage = completion.data.choices[0].message;
-        resolve(completionMessage);
+
+        async function quickStart(originalText) {
+          const text = originalText;
+          const target = "zh-HK";
+          const [translation] = await translate.translate(text, target);
+          return translation;
+        }
+        const translated = quickStart(completionMessage.content);
+        resolve(translated);
       } catch (error) {
         console.error(error);
         reject("fail");
